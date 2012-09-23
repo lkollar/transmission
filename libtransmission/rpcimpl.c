@@ -1166,6 +1166,62 @@ torrentSetLocation( tr_session               * session,
     return errmsg;
 }
 
+void
+move_done_completeness_func( tr_torrent       * torrent,
+                             tr_completeness    completeness,
+                             bool               wasRunning,
+                             void             * user_data );
+void
+move_done_completeness_func( tr_torrent       * torrent,
+                             tr_completeness    completeness,
+                             bool               wasRunning UNUSED,
+                             void             * user_data )
+{
+	char * dest = ( char * ) user_data;
+
+	if (completeness == TR_SEED || completeness == TR_PARTIAL_SEED)
+	{
+		tr_torrentSetLocation( torrent, dest, 1, NULL, NULL );
+	}
+
+	free( dest );
+	tr_torrentClearCompletenessCallback( torrent );
+}
+
+static const char*
+torrentSetMoveDone( tr_session               * session,
+                    tr_benc                  * args_in,
+                    tr_benc                  * args_out UNUSED,
+                    struct tr_rpc_idle_data  * idle_data UNUSED )
+{
+    const char * errmsg = NULL;
+    const char * location = NULL;
+
+    assert( idle_data == NULL );
+
+    if( !tr_bencDictFindStr( args_in, "location", &location ) )
+    {
+        errmsg = "no location";
+    }
+    else
+    {
+        int i, torrentCount;
+        tr_torrent ** torrents = getTorrents( session, args_in, &torrentCount );
+        char *dest = malloc( strlen( location ) + 1 );
+        strcpy(dest, location);
+
+        for( i=0; i<torrentCount; ++i )
+        {
+            tr_torrent * tor = torrents[i];
+            tr_torrentSetCompletenessCallback( tor, move_done_completeness_func, dest);
+        }
+
+        tr_free( torrents );
+    }
+
+    return errmsg;
+}
+
 /***
 ****
 ***/
@@ -1793,6 +1849,7 @@ methods[] =
     { "torrent-remove",        true,  torrentRemove       },
     { "torrent-set",           true,  torrentSet          },
     { "torrent-set-location",  true,  torrentSetLocation  },
+    { "torrent-move-done",     true,  torrentSetMoveDone  },
     { "torrent-start",         true,  torrentStart        },
     { "torrent-start-now",     true,  torrentStartNow     },
     { "torrent-stop",          true,  torrentStop         },

@@ -261,6 +261,7 @@ static tr_option opts[] =
     { 'l', "list",                   "List all torrents", "l",  0, NULL },
     { 960, "move",                   "Move current torrent's data to a new folder", NULL, 1, "<path>" },
     { 961, "find",                   "Tell Transmission where to find a torrent's data", NULL, 1, "<path>" },
+    { 965, "move-done",              "Move the downloaded data when it's completed", NULL, 1, "<path>" },
     { 'm', "portmap",                "Enable portmapping via NAT-PMP or UPnP", "m",  0, NULL },
     { 'M', "no-portmap",             "Disable portmapping", "M",  0, NULL },
     { 'n', "auth",                   "Set username and password", "n",  1, "<user:pw>" },
@@ -481,6 +482,7 @@ getOptMode( int val )
             return MODE_TORRENT_REMOVE;
 
         case 960: /* move */
+        case 965:
             return MODE_TORRENT_SET_LOCATION;
 
         default:
@@ -2324,6 +2326,20 @@ processArgs( const char * rpcurl, int argc, const char ** argv )
                 addIdArg( args, id );
                 status |= flush( rpcurl, &top );
                 break;
+            }
+            case 965:
+            {
+                tr_benc * args;
+                tr_benc * top = tr_new0( tr_benc, 1 );
+                tr_bencInitDict( top, 2 );
+                tr_bencDictAddStr( top, "method", "torrent-move-done" );
+                args = tr_bencDictAddDict( top, ARGUMENTS, 3 );
+                tr_bencDictAddStr( args, "location", optarg );
+                tr_bencDictAddBool( args, "move", true );
+                addIdArg( args, id );
+                status |= flush( rpcurl, &top );
+
+            	break;
             }
             default:
             {
